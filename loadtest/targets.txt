@@ -1,0 +1,29 @@
+POST http://localhost:8080/v1/chat/completions
+Content-Type: application/json
+X-API-Key: test-key
+
+{"model":"gpt-3.5-turbo","messages":[{"role":"user","content":"Hello, how are you?"}]}
+
+POST http://localhost:8080/v1/chat/completions
+Content-Type: application/json
+X-API-Key: test-key
+
+{"model":"gpt-3.5-turbo","messages":[{"role":"user","content":"What is Go programming?"}]}
+
+POST http://localhost:8080/v1/chat/completions
+Content-Type: application/json
+X-API-Key: key-premium
+
+{"model":"gpt-3.5-turbo","messages":[{"role":"user","content":"Explain Docker containers"}]}
+
+POST http://localhost:8080/v1/chat/completions
+Content-Type: application/json
+X-API-Key: test-key
+
+{"model":"gpt-3.5-turbo","messages":[{"role":"user","content":"What is Kubernetes?"}]}
+
+POST http://localhost:8080/v1/chat/completions
+Content-Type: application/json
+X-API-Key: test-key
+
+{"model":"gpt-3.5-turbo","messages":[{"role":"user","content":"Hello, how are you?"}]}

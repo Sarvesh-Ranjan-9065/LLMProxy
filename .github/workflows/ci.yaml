@@ -1,0 +1,83 @@
+name: LLMProxy CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+
+    services:
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: "1.22"
+
+      - name: Download dependencies
+        run: go mod download
+
+      - name: Build proxy
+        run: go build -o bin/proxy ./cmd/proxy/
+
+      - name: Build worker
+        run: go build -o bin/worker ./cmd/worker/
+
+      - name: Run tests
+        env:
+          REDIS_ADDR: localhost:6379
+        run: go test ./... -v -count=1 -race
+
+      - name: Start workers
+        run: |
+          WORKER_PORT=9001 WORKER_ID=worker-1 ./bin/worker &
+          WORKER_PORT=9002 WORKER_ID=worker-2 ./bin/worker &
+          WORKER_PORT=9003 WORKER_ID=worker-3 ./bin/worker &
+          sleep 2
+
+      - name: Start proxy
+        run: |
+          REDIS_ADDR=localhost:6379 ./bin/proxy &
+          sleep 3
+
+      - name: Integration test - Health check
+        run: |
+          curl -f http://localhost:8080/health
+
+      - name: Integration test - Chat completion
+        run: |
+          RESPONSE=$(curl -s -w "\n%{http_code}" -X POST http://localhost:8080/v1/chat/completions \
+            -H "Content-Type: application/json" \
+            -H "X-API-Key: test-key" \
+            -d '{"model":"gpt-3.5-turbo","messages":[{"role":"user","content":"Hello"}]}')
+          HTTP_CODE=$(echo "$RESPONSE" | tail -1)
+          echo "Status: $HTTP_CODE"
+          [ "$HTTP_CODE" = "200" ] || exit 1
+
+      - name: Integration test - Auth rejection
+        run: |
+          HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" -X POST http://localhost:8080/v1/chat/completions \
+            -H "Content-Type: application/json" \
+            -H "X-API-Key: invalid-key" \
+            -d '{"model":"gpt-3.5-turbo","messages":[{"role":"user","content":"Hello"}]}')
+          echo "Status: $HTTP_CODE"
+          [ "$HTTP_CODE" = "401" ] || exit 1
+
+      - name: Integration test - Metrics endpoint
+        run: |
+          curl -f http://localhost:8080/metrics | grep llmproxy_requests_total

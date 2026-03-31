@@ -1,0 +1,22 @@
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+
+scrape_configs:
+  - job_name: "llmproxy"
+    static_configs:
+      # Docker Compose target (used by docker-compose.yml)
+      - targets: ["proxy:8080"]
+        labels:
+          env: "docker"
+
+  # Uncomment below when deploying to Kubernetes and remove the
+  # Docker Compose target above.
+  # - job_name: "llmproxy-k8s"
+  #   static_configs:
+  #     - targets: ["llmproxy-gateway-service.default.svc.cluster.local:8080"]
+  #       labels:
+  #         env: "kubernetes"
+
+    metrics_path: /metrics
+    scrape_interval: 5s

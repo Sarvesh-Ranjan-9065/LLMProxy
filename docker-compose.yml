@@ -1,0 +1,96 @@
+version: "3.9"
+
+services:
+  # ─── Redis ────────────────────────────────────────
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  # ─── Mock LLM Workers ────────────────────────────
+  worker-1:
+    build:
+      context: .
+      dockerfile: Dockerfile.worker
+    environment:
+      - WORKER_PORT=9001
+      - WORKER_ID=worker-1
+    ports:
+      - "9001:9001"
+
+  worker-2:
+    build:
+      context: .
+      dockerfile: Dockerfile.worker
+    environment:
+      - WORKER_PORT=9001
+      - WORKER_ID=worker-2
+    ports:
+      - "9002:9001"
+
+  worker-3:
+    build:
+      context: .
+      dockerfile: Dockerfile.worker
+    environment:
+      - WORKER_PORT=9001
+      - WORKER_ID=worker-3
+    ports:
+      - "9003:9001"
+
+  # ─── LLMProxy Gateway ────────────────────────────
+  proxy:
+    build:
+      context: .
+      dockerfile: Dockerfile.proxy
+    environment:
+      - PROXY_PORT=8080
+      - REDIS_ADDR=redis:6379
+      - WORKER_1_URL=http://worker-1:9001
+      - WORKER_2_URL=http://worker-2:9001
+      - WORKER_3_URL=http://worker-3:9001
+    ports:
+      - "8080:8080"
+    depends_on:
+      redis:
+        condition: service_healthy
+      worker-1:
+        condition: service_started
+      worker-2:
+        condition: service_started
+      worker-3:
+        condition: service_started
+
+  # ─── Prometheus ───────────────────────────────────
+  prometheus:
+    image: prom/prometheus:latest
+    volumes:
+      - ./k8s/monitoring/prometheus-config.yaml:/etc/prometheus/prometheus.yml
+    ports:
+      - "9090:9090"
+    depends_on:
+      - proxy
+
+  # ─── Grafana ──────────────────────────────────────
+  grafana:
+    image: grafana/grafana:latest
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+      - GF_SECURITY_ADMIN_USER=admin
+    volumes:
+      - grafana-data:/var/lib/grafana
+    ports:
+      - "3000:3000"
+    depends_on:
+      - prometheus
+
+volumes:
+  redis-data:
+  grafana-data:
