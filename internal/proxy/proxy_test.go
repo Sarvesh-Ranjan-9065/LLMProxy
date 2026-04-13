@@ -7,8 +7,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/yourusername/llmproxy/internal/config"
-	"github.com/yourusername/llmproxy/internal/router"
+	"github.com/Sarvesh-Ranjan-9065/llmproxy/internal/config"
+	"github.com/Sarvesh-Ranjan-9065/llmproxy/internal/router"
 )
 
 func TestReverseProxyForwardsPathQueryAndHeaders(t *testing.T) {

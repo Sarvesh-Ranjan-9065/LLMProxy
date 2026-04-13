@@ -5,8 +5,8 @@ import (
     "testing"
     "time"
 
-    "github.com/yourusername/llmproxy/internal/cache"
-    "github.com/yourusername/llmproxy/internal/config"
+    "github.com/Sarvesh-Ranjan-9065/llmproxy/internal/cache"
+    "github.com/Sarvesh-Ranjan-9065/llmproxy/internal/config"
 )
 
 func setupRedis(t *testing.T) *Store {

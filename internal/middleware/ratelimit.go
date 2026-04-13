@@ -7,9 +7,9 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/yourusername/llmproxy/internal/config"
-	"github.com/yourusername/llmproxy/internal/metrics"
-	"github.com/yourusername/llmproxy/internal/ratelimit"
+	"github.com/Sarvesh-Ranjan-9065/llmproxy/internal/config"
+	"github.com/Sarvesh-Ranjan-9065/llmproxy/internal/metrics"
+	"github.com/Sarvesh-Ranjan-9065/llmproxy/internal/ratelimit"
 )
 
 // RateLimit middleware applies per-API-key token bucket rate limiting

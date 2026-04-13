@@ -5,7 +5,7 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/yourusername/llmproxy/internal/metrics"
+	"github.com/Sarvesh-Ranjan-9065/llmproxy/internal/metrics"
 )
 
 // Metrics middleware records Prometheus metrics for each request

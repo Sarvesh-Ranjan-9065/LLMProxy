@@ -4,7 +4,7 @@ import (
 	"net/url"
 	"sync"
 
-	"github.com/yourusername/llmproxy/internal/config"
+	"github.com/Sarvesh-Ranjan-9065/llmproxy/internal/config"
 )
 
 // Backend represents a single backend worker

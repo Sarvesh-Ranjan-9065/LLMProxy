@@ -11,9 +11,9 @@ import (
 	"strings"
 	"time"
 
-	internalCache "github.com/yourusername/llmproxy/internal/cache"
-	"github.com/yourusername/llmproxy/internal/config"
-	"github.com/yourusername/llmproxy/internal/metrics"
+	internalCache "github.com/Sarvesh-Ranjan-9065/llmproxy/internal/cache"
+	"github.com/Sarvesh-Ranjan-9065/llmproxy/internal/config"
+	"github.com/Sarvesh-Ranjan-9065/llmproxy/internal/metrics"
 )
 
 // responseRecorder captures the response so we can cache it

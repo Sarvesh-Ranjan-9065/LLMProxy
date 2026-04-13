@@ -5,7 +5,7 @@ import (
 	"log/slog"
 	"os"
 
-	"github.com/yourusername/llmproxy/internal/worker"
+	"github.com/Sarvesh-Ranjan-9065/llmproxy/internal/worker"
 )
 
 func main() {

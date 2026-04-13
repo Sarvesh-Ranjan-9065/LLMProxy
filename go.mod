@@ -1,4 +1,4 @@
-module github.com/yourusername/llmproxy
+module github.com/Sarvesh-Ranjan-9065/llmproxy
 
 go 1.22.0
 

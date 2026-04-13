@@ -7,8 +7,8 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/yourusername/llmproxy/internal/metrics"
-	"github.com/yourusername/llmproxy/internal/router"
+	"github.com/Sarvesh-Ranjan-9065/llmproxy/internal/metrics"
+	"github.com/Sarvesh-Ranjan-9065/llmproxy/internal/router"
 )
 
 // ReverseProxy forwards requests to backend workers

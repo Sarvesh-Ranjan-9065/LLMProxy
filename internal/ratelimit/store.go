@@ -3,7 +3,7 @@ package ratelimit
 import (
 	"context"
 
-	"github.com/yourusername/llmproxy/internal/cache"
+	"github.com/Sarvesh-Ranjan-9065/llmproxy/internal/cache"
 )
 
 // Store wraps Redis operations for rate limiting

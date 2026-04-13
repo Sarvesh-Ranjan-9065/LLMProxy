@@ -5,7 +5,7 @@ import (
     "testing"
     "time"
 
-    "github.com/yourusername/llmproxy/internal/config"
+    "github.com/Sarvesh-Ranjan-9065/llmproxy/internal/config"
 )
 
 func setupTestRedis(t *testing.T) *RedisClient {
