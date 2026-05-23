@@ -1,0 +1,33 @@
+# Binaries
+/bin/
+
+# Local env files
+.env
+.env.local
+.env.*.local
+
+# Bugfix plans and local notes (do not commit)
+/bugfixer/
+
+# Logs
+logs/
+*.log
+
+# OS / Editor
+.DS_Store
+.vscode/
+.idea/
+*.swp
+
+# Go
+*.exe
+*.exe~
+*.test
+*.out
+
+# Dependency directories
+/vendor/
+
+# Coverage
+coverage.out
+
