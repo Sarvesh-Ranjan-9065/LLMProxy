@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/redis/go-redis/v9"
 	"github.com/Sarvesh-Ranjan-9065/llmproxy/internal/config"
+	"github.com/redis/go-redis/v9"
 )
 
 type RedisClient struct {
@@ -75,4 +75,8 @@ func (r *RedisClient) Close() error {
 
 func (r *RedisClient) Client() *redis.Client {
 	return r.client
+}
+
+func (r *RedisClient) Ping(ctx context.Context) error {
+	return r.client.Ping(ctx).Err()
 }
