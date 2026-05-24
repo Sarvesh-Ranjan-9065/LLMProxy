@@ -60,7 +60,7 @@ type ChatRequest struct {
 	Temperature      *float64        `json:"temperature,omitempty"`
 	TopP             *float64        `json:"top_p,omitempty"`
 	MaxTokens        *int            `json:"max_tokens,omitempty"`
-	Stream           bool            `json:"stream,omitempty"`
+	Stream           *bool           `json:"stream,omitempty"`
 	Stop             []string        `json:"stop,omitempty"`
 	PresencePenalty  *float64        `json:"presence_penalty,omitempty"`
 	FrequencyPenalty *float64        `json:"frequency_penalty,omitempty"`
@@ -173,8 +173,11 @@ func (h *SemanticHasher) Normalize(req ChatRequest) (ChatRequest, error) {
 	normalized.Seed = req.Seed
 	normalized.N = req.N
 
-	// Normalize stream
-	normalized.Stream = req.Stream
+	// Normalize stream (preserve explicit false vs omitted)
+	if req.Stream != nil {
+		streamVal := *req.Stream
+		normalized.Stream = &streamVal
+	}
 
 	// Normalize stop sequences (case-sensitive, but trim whitespace)
 	normalized.Stop = h.normalizeStopSequences(req.Stop)

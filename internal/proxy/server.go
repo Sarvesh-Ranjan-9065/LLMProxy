@@ -10,12 +10,12 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/Sarvesh-Ranjan-9065/llmproxy/internal/cache"
 	"github.com/Sarvesh-Ranjan-9065/llmproxy/internal/config"
 	"github.com/Sarvesh-Ranjan-9065/llmproxy/internal/middleware"
 	"github.com/Sarvesh-Ranjan-9065/llmproxy/internal/ratelimit"
 	"github.com/Sarvesh-Ranjan-9065/llmproxy/internal/router"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
 type Server struct {
@@ -54,7 +54,7 @@ func NewServer(cfg *config.Config) (*Server, error) {
 	ttlMgr := cache.NewTTLManager(redisClient, cfg.Cache.TTL)
 
 	// Initialize reverse proxy
-	reverseProxy := NewReverseProxy(lb)
+	reverseProxy := NewReverseProxy(lb, cfg)
 
 	// ──────────────────────────────────────────────────────────────
 	// Middleware chain — execution order (outermost → innermost):
@@ -68,12 +68,12 @@ func NewServer(cfg *config.Config) (*Server, error) {
 	// ──────────────────────────────────────────────────────────────
 	handler := buildChain(
 		reverseProxy,
-		middleware.Recovery(),                                      // 1 — outermost
-		middleware.Auth(cfg.Auth),                                  // 2
-		middleware.Metrics(),                                       // 3
-		middleware.Logging(),                                       // 4
-		middleware.RateLimit(tokenBucket, cfg.RateLimit),           // 5
-		middleware.Cache(redisClient, hasher, ttlMgr, cfg.Cache),  // 6 — innermost middleware
+		middleware.Recovery(),     // 1 — outermost
+		middleware.Auth(cfg.Auth), // 2
+		middleware.Metrics(),      // 3
+		middleware.Logging(),      // 4
+		middleware.RateLimit(tokenBucket, cfg.RateLimit),         // 5
+		middleware.Cache(redisClient, hasher, ttlMgr, cfg.Cache), // 6 — innermost middleware
 	)
 
 	// Set up routes

@@ -1,18 +1,23 @@
 package metrics
 
 import (
+	"os"
+
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promauto"
 )
 
 var (
 	// ─── Request metrics ───────────────────────────────────────
+	// By default we do NOT include raw API keys as labels to avoid
+	// high-cardinality label explosions in Prometheus. Operators can
+	// enable per-key metrics via the `ENABLE_PER_KEY_METRICS` env var.
 	RequestsTotal = promauto.NewCounterVec(
 		prometheus.CounterOpts{
 			Name: "llmproxy_requests_total",
 			Help: "Total number of requests processed",
 		},
-		[]string{"method", "path", "status", "api_key"},
+		[]string{"method", "path", "status"},
 	)
 
 	RequestDuration = promauto.NewHistogramVec(
@@ -57,7 +62,7 @@ var (
 			Name: "llmproxy_rate_limited_total",
 			Help: "Total number of rate-limited requests",
 		},
-		[]string{"api_key"},
+		[]string{},
 	)
 
 	// ─── Token usage metrics ───────────────────────────────────
@@ -66,7 +71,7 @@ var (
 			Name: "llmproxy_tokens_used_total",
 			Help: "Total tokens used (estimated)",
 		},
-		[]string{"api_key", "type"},
+		[]string{"type"},
 	)
 
 	EstimatedCost = promauto.NewCounterVec(
@@ -74,7 +79,7 @@ var (
 			Name: "llmproxy_estimated_cost_dollars",
 			Help: "Estimated cost in dollars",
 		},
-		[]string{"api_key"},
+		[]string{},
 	)
 
 	// ─── Backend metrics ───────────────────────────────────────
@@ -110,4 +115,33 @@ var (
 		},
 		[]string{"worker"},
 	)
+
+	// Optional per-key metrics (created when ENABLE_PER_KEY_METRICS=1)
+	PerKeyRequestsTotal *prometheus.CounterVec
+	PerKeyEnabledGauge  prometheus.Gauge
 )
+
+func init() {
+	if os.Getenv("ENABLE_PER_KEY_METRICS") == "1" || os.Getenv("ENABLE_PER_KEY_METRICS") == "true" {
+		// create a simple gauge so operators can tell per-key metrics are enabled
+		PerKeyEnabledGauge = promauto.NewGauge(prometheus.GaugeOpts{
+			Name: "llmproxy_per_key_metrics_enabled",
+			Help: "Whether per-key metrics are enabled (1=true)",
+		})
+		PerKeyEnabledGauge.Set(1)
+		PerKeyRequestsTotal = promauto.NewCounterVec(
+			prometheus.CounterOpts{
+				Name: "llmproxy_requests_per_key_total",
+				Help: "Total number of requests broken down by api_key (opt-in)",
+			},
+			[]string{"method", "path", "status", "api_key"},
+		)
+	} else {
+		// ensure gauge exists but is zero
+		PerKeyEnabledGauge = promauto.NewGauge(prometheus.GaugeOpts{
+			Name: "llmproxy_per_key_metrics_enabled",
+			Help: "Whether per-key metrics are enabled (1=true)",
+		})
+		PerKeyEnabledGauge.Set(0)
+	}
+}

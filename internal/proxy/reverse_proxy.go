@@ -5,8 +5,10 @@ import (
 	"log/slog"
 	"net"
 	"net/http"
+	"strings"
 	"time"
 
+	"github.com/Sarvesh-Ranjan-9065/llmproxy/internal/config"
 	"github.com/Sarvesh-Ranjan-9065/llmproxy/internal/metrics"
 	"github.com/Sarvesh-Ranjan-9065/llmproxy/internal/router"
 )
@@ -15,9 +17,10 @@ import (
 type ReverseProxy struct {
 	lb     *router.LoadBalancer
 	client *http.Client
+	cfg    *config.Config
 }
 
-func NewReverseProxy(lb *router.LoadBalancer) *ReverseProxy {
+func NewReverseProxy(lb *router.LoadBalancer, cfg *config.Config) *ReverseProxy {
 	transport := &http.Transport{
 		DialContext: (&net.Dialer{
 			Timeout:   10 * time.Second,
@@ -37,6 +40,7 @@ func NewReverseProxy(lb *router.LoadBalancer) *ReverseProxy {
 			Transport: transport,
 			Timeout:   60 * time.Second,
 		},
+		cfg: cfg,
 	}
 }
 
@@ -69,12 +73,22 @@ func (rp *ReverseProxy) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Copy headers from original request
+	// Copy headers from original request, but avoid forwarding client
+	// authentication headers unless passthrough is explicitly enabled.
+	clientAuth := r.Header.Get("Authorization")
+	clientAPIKey := r.Header.Get("X-API-Key")
+
 	for key, values := range r.Header {
+		// Skip sensitive headers we will handle explicitly
+		if strings.EqualFold(key, "Authorization") || strings.EqualFold(key, "X-API-Key") {
+			continue
+		}
 		for _, v := range values {
 			proxyReq.Header.Add(key, v)
 		}
 	}
+
+	// Handle X-Forwarded-For / Host as before
 
 	// Correct X-Forwarded-For: strip port from RemoteAddr and append
 	clientIP := r.RemoteAddr
@@ -88,6 +102,20 @@ func (rp *ReverseProxy) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 	proxyReq.Header.Set("X-Forwarded-Host", r.Host)
 
+	// Inject backend credentials or passthrough client auth if configured
+	if rp.cfg != nil {
+		if rp.cfg.Server.BackendAuthPassthrough {
+			if clientAuth != "" {
+				proxyReq.Header.Set("Authorization", clientAuth)
+			}
+			if clientAPIKey != "" {
+				proxyReq.Header.Set("X-API-Key", clientAPIKey)
+			}
+		} else if rp.cfg.Server.BackendAuthHeader != "" {
+			proxyReq.Header.Set(rp.cfg.Server.BackendAuthHeader, rp.cfg.Server.BackendAuthValue)
+		}
+	}
+
 	// Send request to backend
 	resp, err := rp.client.Do(proxyReq)
 	if err != nil {
@@ -96,8 +124,9 @@ func (rp *ReverseProxy) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			"error", err,
 		)
 		metrics.BackendRequestsTotal.WithLabelValues(backend.URL.String(), "error").Inc()
-		http.Error(w, `{"error":{"message":"backend unavailable","type":"server_error","code":502}}`,
-			http.StatusBadGateway)
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusBadGateway)
+		w.Write([]byte(`{"error":{"message":"backend unavailable","type":"server_error","code":502}}`))
 		return
 	}
 	defer resp.Body.Close()

@@ -35,7 +35,7 @@ func TestReverseProxyForwardsPathQueryAndHeaders(t *testing.T) {
 	}
 
 	lb := router.NewLoadBalancer(pool, router.RoundRobin)
-	rp := NewReverseProxy(lb)
+	rp := NewReverseProxy(lb, &config.Config{})
 
 	req := httptest.NewRequest(http.MethodPost, "/v1/chat/completions?model=test", strings.NewReader(`{"msg":"hello"}`))
 	req.Header.Set("Content-Type", "application/json")
@@ -72,7 +72,7 @@ func TestReverseProxyReturns503WhenNoBackends(t *testing.T) {
 	}
 
 	lb := router.NewLoadBalancer(pool, router.RoundRobin)
-	rp := NewReverseProxy(lb)
+	rp := NewReverseProxy(lb, &config.Config{})
 
 	req := httptest.NewRequest(http.MethodGet, "/v1/chat/completions", nil)
 	rec := httptest.NewRecorder()

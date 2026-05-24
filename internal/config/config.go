@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"log/slog"
 	"os"
+	"strings"
 	"time"
 )
 
@@ -21,6 +22,10 @@ type ServerConfig struct {
 	ReadTimeout     time.Duration `json:"read_timeout"`
 	WriteTimeout    time.Duration `json:"write_timeout"`
 	ShutdownTimeout time.Duration `json:"shutdown_timeout"`
+	// Backend auth injection/passthrough
+	BackendAuthHeader      string `json:"backend_auth_header,omitempty"`
+	BackendAuthValue       string `json:"backend_auth_value,omitempty"`
+	BackendAuthPassthrough bool   `json:"backend_auth_passthrough,omitempty"`
 }
 
 type RedisConfig struct {
@@ -76,11 +81,7 @@ func Load() *Config {
 		RateLimit: RateLimitConfig{
 			DefaultRate:  10,
 			DefaultBurst: 20,
-			PerKeyLimits: map[string]KeyLimit{
-				"key-premium": {Rate: 100, Burst: 200},
-				"key-free":    {Rate: 2, Burst: 5},
-				"key-basic":   {Rate: 10, Burst: 20},
-			},
+			PerKeyLimits: map[string]KeyLimit{},
 		},
 		Cache: CacheConfig{
 			Enabled: true,
@@ -88,12 +89,7 @@ func Load() *Config {
 		},
 		Auth: AuthConfig{
 			Enabled: true,
-			APIKeys: map[string]string{
-				"key-premium": "premium-user",
-				"key-free":    "free-user",
-				"key-basic":   "basic-user",
-				"test-key":    "test-user",
-			},
+			APIKeys: map[string]string{},
 		},
 	}
 
@@ -113,8 +109,24 @@ func Load() *Config {
 		} else {
 			slog.Info("loaded config from file", "file", configFile)
 		}
-	}
 
+		// Allow API keys to be provided via environment as JSON map
+		if apiKeysJSON := getEnv("API_KEYS_JSON", ""); apiKeysJSON != "" {
+			var m map[string]string
+			if err := json.Unmarshal([]byte(apiKeysJSON), &m); err == nil {
+				cfg.Auth.APIKeys = m
+			} else {
+				slog.Error("invalid API_KEYS_JSON, ignoring", "error", err)
+			}
+		}
+
+		// Backend auth settings from env
+		cfg.Server.BackendAuthHeader = getEnv("PROXY_BACKEND_AUTH_HEADER", cfg.Server.BackendAuthHeader)
+		cfg.Server.BackendAuthValue = getEnv("PROXY_BACKEND_AUTH_VALUE", cfg.Server.BackendAuthValue)
+		if v := getEnv("PROXY_BACKEND_AUTH_PASSTHROUGH", ""); v != "" {
+			cfg.Server.BackendAuthPassthrough = (v == "1" || strings.ToLower(v) == "true")
+		}
+	}
 	return cfg
 }
 

@@ -80,7 +80,7 @@ func Cache(
 
 			// Check if streaming is requested — don't cache streams
 			var req internalCache.ChatRequest
-			if err := json.Unmarshal(body, &req); err == nil && req.Stream {
+			if err := json.Unmarshal(body, &req); err == nil && req.Stream != nil && *req.Stream {
 				next.ServeHTTP(w, r)
 				return
 			}

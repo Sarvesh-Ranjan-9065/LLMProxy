@@ -29,8 +29,14 @@ func Metrics() func(http.Handler) http.Handler {
 			status := strconv.Itoa(recorder.status)
 
 			metrics.RequestsTotal.WithLabelValues(
-				r.Method, r.URL.Path, status, apiKey,
+				r.Method, r.URL.Path, status,
 			).Inc()
+
+			// If per-key metrics are enabled, also emit the per-key counter.
+			// This avoids high-cardinality labels by default.
+			if metrics.PerKeyRequestsTotal != nil {
+				metrics.PerKeyRequestsTotal.WithLabelValues(r.Method, r.URL.Path, status, apiKey).Inc()
+			}
 
 			metrics.RequestDuration.WithLabelValues(
 				r.Method, r.URL.Path, status,
@@ -38,11 +44,11 @@ func Metrics() func(http.Handler) http.Handler {
 
 			// Estimate token cost (rough estimation based on response size)
 			estimatedTokens := float64(recorder.size) / 4.0 // ~4 chars per token
-			metrics.TokensUsed.WithLabelValues(apiKey, "completion").Add(estimatedTokens)
+			metrics.TokensUsed.WithLabelValues("completion").Add(estimatedTokens)
 
 			// Estimate cost: ~$0.002 per 1K tokens for GPT-3.5
 			cost := estimatedTokens / 1000.0 * 0.002
-			metrics.EstimatedCost.WithLabelValues(apiKey).Add(cost)
+			metrics.EstimatedCost.WithLabelValues().Add(cost)
 		})
 	}
 }
