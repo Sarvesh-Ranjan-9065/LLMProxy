@@ -149,7 +149,7 @@ func (h *SemanticHasher) Normalize(req ChatRequest) (ChatRequest, error) {
 
 	// Normalize model
 	if req.Model != "" {
-		normalized.Model = h.normalizeString(req.Model, true)
+		normalized.Model = h.normalizeString("model", req.Model, true)
 	}
 
 	// Normalize messages (preserve order, but normalize content)
@@ -191,7 +191,7 @@ func (h *SemanticHasher) Normalize(req ChatRequest) (ChatRequest, error) {
 	// Normalize response_format
 	if req.ResponseFormat != nil {
 		normalized.ResponseFormat = &ResponseFormat{
-			Type:       h.normalizeString(req.ResponseFormat.Type, true),
+			Type:       h.normalizeString("response_format.type", req.ResponseFormat.Type, true),
 			JSONSchema: h.normalizeJSONSchema(req.ResponseFormat.JSONSchema),
 		}
 	}
@@ -201,7 +201,7 @@ func (h *SemanticHasher) Normalize(req ChatRequest) (ChatRequest, error) {
 
 	// Normalize user identifier
 	if req.User != "" {
-		normalized.User = h.normalizeString(req.User, false) // Case-sensitive for user IDs
+		normalized.User = h.normalizeString("user", req.User, false) // Case-sensitive for user IDs
 	}
 
 	return normalized, nil
@@ -209,12 +209,12 @@ func (h *SemanticHasher) Normalize(req ChatRequest) (ChatRequest, error) {
 
 func (h *SemanticHasher) normalizeMessage(msg ChatMessage) (ChatMessage, error) {
 	normalized := ChatMessage{
-		Role: h.normalizeString(msg.Role, true),
+		Role: h.normalizeString("role", msg.Role, true),
 	}
 
 	// Handle name (for function messages)
 	if msg.Name != nil {
-		name := h.normalizeString(*msg.Name, false)
+		name := h.normalizeString("function_name", *msg.Name, false)
 		normalized.Name = &name
 	}
 
@@ -273,12 +273,12 @@ func (h *SemanticHasher) normalizeContentBlocks(blocks []interface{}) ([]Content
 		}
 
 		// Normalize based on type
-		cb.Type = h.normalizeString(cb.Type, true)
+		cb.Type = h.normalizeString("content.type", cb.Type, true)
 		if cb.Type == "text" {
 			cb.Text = h.normalizeTextContent(cb.Text)
 		} else if cb.Type == "image_url" && cb.ImageURL != nil {
 			cb.ImageURL.URL = strings.TrimSpace(cb.ImageURL.URL)
-			cb.ImageURL.Detail = h.normalizeString(cb.ImageURL.Detail, true)
+			cb.ImageURL.Detail = h.normalizeString("image_url.detail", cb.ImageURL.Detail, true)
 		}
 		normalized[i] = cb
 	}
@@ -320,9 +320,9 @@ func (h *SemanticHasher) normalizeWithCodeBlocks(s string) string {
 	return strings.Join(parts, "```")
 }
 
-func (h *SemanticHasher) normalizeString(s string, toLower bool) string {
+func (h *SemanticHasher) normalizeString(fieldName, s string, toLower bool) string {
 	s = strings.TrimSpace(s)
-	if toLower && !h.isCaseSensitiveField(s) {
+	if toLower && !h.isCaseSensitiveField(fieldName) {
 		s = strings.ToLower(s)
 	}
 	if h.config.NormalizeUnicode {
@@ -333,9 +333,10 @@ func (h *SemanticHasher) normalizeString(s string, toLower bool) string {
 	return strings.Join(fields, " ")
 }
 
-func (h *SemanticHasher) isCaseSensitiveField(s string) bool {
+func (h *SemanticHasher) isCaseSensitiveField(fieldName string) bool {
+	fieldName = strings.ToLower(strings.TrimSpace(fieldName))
 	for _, field := range h.config.CaseSensitiveFields {
-		if s == field {
+		if fieldName == field {
 			return true
 		}
 	}
@@ -372,9 +373,9 @@ func (h *SemanticHasher) normalizeTools(tools []Tool) []Tool {
 	normalized := make([]Tool, len(tools))
 	for i, tool := range tools {
 		normalized[i] = Tool{
-			Type: h.normalizeString(tool.Type, true),
+			Type: h.normalizeString("tool.type", tool.Type, true),
 			Function: Function{
-				Name:        h.normalizeString(tool.Function.Name, false), // Case-sensitive
+				Name:        h.normalizeString("function_name", tool.Function.Name, false), // Case-sensitive
 				Description: h.normalizeTextContent(tool.Function.Description),
 				Parameters:  h.normalizeJSONSchema(tool.Function.Parameters),
 			},
@@ -390,9 +391,9 @@ func (h *SemanticHasher) normalizeTools(tools []Tool) []Tool {
 func (h *SemanticHasher) normalizeToolCall(tc ToolCall) ToolCall {
 	return ToolCall{
 		ID:   strings.TrimSpace(tc.ID),
-		Type: h.normalizeString(tc.Type, true),
+		Type: h.normalizeString("tool_call.type", tc.Type, true),
 		Function: FunctionCall{
-			Name:      h.normalizeString(tc.Function.Name, false),
+			Name:      h.normalizeString("function_name", tc.Function.Name, false),
 			Arguments: tc.Function.Arguments, // JSON string, should be validated but not altered
 		},
 	}
