@@ -54,7 +54,7 @@ type Pool struct {
 	mu       sync.RWMutex
 }
 
-func NewPool(workers []config.WorkerConfig) (*Pool, error) {
+func NewPool(workers []config.WorkerConfig, startAlive bool) (*Pool, error) {
 	pool := &Pool{}
 
 	for _, w := range workers {
@@ -64,7 +64,7 @@ func NewPool(workers []config.WorkerConfig) (*Pool, error) {
 		}
 		pool.backends = append(pool.backends, &Backend{
 			URL:    u,
-			Alive:  true,
+			Alive:  startAlive,
 			Weight: w.Weight,
 		})
 	}

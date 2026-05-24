@@ -35,7 +35,7 @@ func NewServer(cfg *config.Config) (*Server, error) {
 	slog.Info("connected to Redis", "addr", cfg.Redis.Addr)
 
 	// Initialize backend pool
-	pool, err := router.NewPool(cfg.Workers)
+	pool, err := router.NewPool(cfg.Workers, cfg.Router.StartBackendsAlive)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create backend pool: %w", err)
 	}

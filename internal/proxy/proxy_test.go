@@ -29,7 +29,7 @@ func TestReverseProxyForwardsPathQueryAndHeaders(t *testing.T) {
 	}))
 	defer backend.Close()
 
-	pool, err := router.NewPool([]config.WorkerConfig{{URL: backend.URL, Weight: 1}})
+	pool, err := router.NewPool([]config.WorkerConfig{{URL: backend.URL, Weight: 1}}, true)
 	if err != nil {
 		t.Fatalf("failed to create pool: %v", err)
 	}
@@ -66,7 +66,7 @@ func TestReverseProxyForwardsPathQueryAndHeaders(t *testing.T) {
 }
 
 func TestReverseProxyReturns503WhenNoBackends(t *testing.T) {
-	pool, err := router.NewPool(nil)
+	pool, err := router.NewPool(nil, true)
 	if err != nil {
 		t.Fatalf("unexpected pool error: %v", err)
 	}

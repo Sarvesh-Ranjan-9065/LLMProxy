@@ -12,6 +12,7 @@ type Config struct {
 	Server    ServerConfig    `json:"server"`
 	Redis     RedisConfig     `json:"redis"`
 	Workers   []WorkerConfig  `json:"workers"`
+	Router    RouterConfig    `json:"router"`
 	RateLimit RateLimitConfig `json:"rate_limit"`
 	Cache     CacheConfig     `json:"cache"`
 	Auth      AuthConfig      `json:"auth"`
@@ -29,14 +30,23 @@ type ServerConfig struct {
 }
 
 type RedisConfig struct {
-	Addr     string `json:"addr"`
-	Password string `json:"password"`
-	DB       int    `json:"db"`
+	Addr         string        `json:"addr"`
+	Password     string        `json:"password"`
+	DB           int           `json:"db"`
+	PoolSize     int           `json:"pool_size"`
+	MinIdleConns int           `json:"min_idle_conns"`
+	DialTimeout  time.Duration `json:"dial_timeout"`
+	ReadTimeout  time.Duration `json:"read_timeout"`
+	WriteTimeout time.Duration `json:"write_timeout"`
 }
 
 type WorkerConfig struct {
 	URL    string `json:"url"`
 	Weight int    `json:"weight"`
+}
+
+type RouterConfig struct {
+	StartBackendsAlive bool `json:"start_backends_alive"`
 }
 
 type RateLimitConfig struct {
@@ -56,8 +66,8 @@ type CacheConfig struct {
 }
 
 type AuthConfig struct {
-	Enabled bool              `json:"enabled"`
-	APIKeys APIKeyMap         `json:"api_keys"`
+	Enabled bool      `json:"enabled"`
+	APIKeys APIKeyMap `json:"api_keys"`
 }
 
 type APIKeyInfo struct {
@@ -113,14 +123,22 @@ func Load() *Config {
 			ShutdownTimeout: 10 * time.Second,
 		},
 		Redis: RedisConfig{
-			Addr:     getEnv("REDIS_ADDR", "localhost:6379"),
-			Password: getEnv("REDIS_PASSWORD", ""),
-			DB:       0,
+			Addr:         getEnv("REDIS_ADDR", "localhost:6379"),
+			Password:     getEnv("REDIS_PASSWORD", ""),
+			DB:           0,
+			PoolSize:     50,
+			MinIdleConns: 10,
+			DialTimeout:  5 * time.Second,
+			ReadTimeout:  3 * time.Second,
+			WriteTimeout: 3 * time.Second,
 		},
 		Workers: []WorkerConfig{
 			{URL: getEnv("WORKER_1_URL", "http://localhost:9001"), Weight: 1},
 			{URL: getEnv("WORKER_2_URL", "http://localhost:9002"), Weight: 1},
 			{URL: getEnv("WORKER_3_URL", "http://localhost:9003"), Weight: 1},
+		},
+		Router: RouterConfig{
+			StartBackendsAlive: true,
 		},
 		RateLimit: RateLimitConfig{
 			DefaultRate:  10,
