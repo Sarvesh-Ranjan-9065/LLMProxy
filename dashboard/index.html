@@ -1,0 +1,134 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>LLMProxy Dashboard</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=Space+Grotesk:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="bg-orb orb-1"></div>
+  <div class="bg-orb orb-2"></div>
+
+  <header class="topbar">
+    <div class="brand">
+      <div class="brand-mark"></div>
+      <div>
+        <div class="brand-title">LLMProxy</div>
+        <div class="brand-subtitle">Gateway Dashboard</div>
+      </div>
+    </div>
+    <div class="session">
+      <div id="sessionRole" class="pill">guest</div>
+      <button id="clearKey" class="ghost-btn" type="button">Clear Key</button>
+    </div>
+  </header>
+
+  <main class="container">
+    <section id="loginPanel" class="panel login">
+      <h2>Access Key</h2>
+      <p>Paste your API key to unlock the dashboard.</p>
+      <div class="login-row">
+        <input id="apiKeyInput" type="password" placeholder="sk-..." autocomplete="off" />
+        <button id="saveKey" class="primary-btn" type="button">Unlock</button>
+      </div>
+      <div id="loginError" class="error"></div>
+    </section>
+
+    <section id="userPanel" class="panel" hidden>
+      <div class="panel-header">
+        <div>
+          <h2>Your Activity</h2>
+          <div class="meta">Owner: <span id="userOwner">-</span></div>
+        </div>
+        <div class="meta">Last updated: <span id="userUpdated">-</span></div>
+      </div>
+      <div class="stat-grid">
+        <div class="stat-card">
+          <div class="stat-label">Requests Total</div>
+          <div id="userRequests" class="stat-value">0</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">Average Latency</div>
+          <div id="userLatency" class="stat-value">0 ms</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">Cache Hit Rate</div>
+          <div id="userCacheRate" class="stat-value">0%</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">Rate Limited</div>
+          <div id="userRateLimited" class="stat-value">0</div>
+        </div>
+      </div>
+      <div class="panel-grid">
+        <div class="card">
+          <h3>Model Usage</h3>
+          <ul id="userModels" class="list"></ul>
+        </div>
+        <div class="card">
+          <h3>Recent Requests</h3>
+          <div id="userRecent" class="recent-list"></div>
+        </div>
+      </div>
+    </section>
+
+    <section id="adminPanel" class="panel admin" hidden>
+      <div class="panel-header">
+        <div>
+          <h2>System Overview</h2>
+          <div class="meta">Admin only</div>
+        </div>
+        <div class="meta">Last updated: <span id="adminUpdated">-</span></div>
+      </div>
+      <div class="stat-grid">
+        <div class="stat-card">
+          <div class="stat-label">Total Requests</div>
+          <div id="adminRequests" class="stat-value">0</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">Active Users</div>
+          <div id="adminUsers" class="stat-value">0</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">Cache Hit Rate</div>
+          <div id="adminCacheRate" class="stat-value">0%</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">Redis Status</div>
+          <div id="adminRedis" class="stat-value">unknown</div>
+        </div>
+      </div>
+      <div class="panel-grid">
+        <div class="card">
+          <h3>Backends</h3>
+          <ul id="adminBackends" class="list"></ul>
+        </div>
+        <div class="card">
+          <h3>Top Models</h3>
+          <ul id="adminModels" class="list"></ul>
+        </div>
+        <div class="card">
+          <h3>Recent Platform Requests</h3>
+          <div id="adminRecent" class="recent-list"></div>
+        </div>
+        <div class="card">
+          <h3>Controls</h3>
+          <div class="control-grid">
+            <button class="ghost-btn" disabled>Disable Backend</button>
+            <button class="ghost-btn" disabled>Clear Cache</button>
+            <button class="ghost-btn" disabled>Rotate Keys</button>
+            <button class="ghost-btn" disabled>Reload Config</button>
+          </div>
+          <div class="meta muted">Controls are placeholders for now.</div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <script src="app.js"></script>
+</body>
+</html>
