@@ -66,7 +66,9 @@ jobs:
 
       - name: Start proxy
         run: |
-          REDIS_ADDR=localhost:6379 ./bin/proxy &
+          REDIS_ADDR=localhost:6379 \
+          API_KEYS_JSON='{"test-key":"ci-user"}' \
+          ./bin/proxy &
           # Wait for proxy /health to respond
           for i in {1..20}; do
             if curl -fsS http://localhost:8080/health >/dev/null 2>&1; then
