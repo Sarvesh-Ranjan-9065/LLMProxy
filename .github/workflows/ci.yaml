@@ -71,7 +71,8 @@ jobs:
             "auth": {
               "enabled": true,
               "api_keys": {
-                "test-key": "ci-user"
+                "test-key": {"owner": "ci-user", "role": "user"},
+                "admin-key": {"owner": "ci-admin", "role": "admin"}
               }
             }
           }
@@ -118,4 +119,4 @@ jobs:
 
       - name: Integration test - Metrics endpoint
         run: |
-          curl -f http://localhost:8080/metrics | grep llmproxy_requests_total
+          curl -f -H "X-API-Key: admin-key" http://localhost:8080/metrics | grep llmproxy_requests_total

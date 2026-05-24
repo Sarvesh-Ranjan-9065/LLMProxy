@@ -56,6 +56,7 @@ services:
       - WORKER_1_URL=http://worker-1:9001
       - WORKER_2_URL=http://worker-2:9001
       - WORKER_3_URL=http://worker-3:9001
+      - API_KEYS_JSON={"admin-key":{"owner":"admin","role":"admin"},"user-key":{"owner":"user","role":"user"}}
     ports:
       - "8080:8080"
     depends_on:

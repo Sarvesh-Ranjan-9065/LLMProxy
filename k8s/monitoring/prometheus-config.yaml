@@ -19,4 +19,5 @@ scrape_configs:
   #         env: "kubernetes"
 
     metrics_path: /metrics
+    bearer_token: "admin-key"
     scrape_interval: 5s
