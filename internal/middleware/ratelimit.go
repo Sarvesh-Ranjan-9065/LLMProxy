@@ -43,7 +43,7 @@ func RateLimit(bucket *ratelimit.TokenBucket, cfg config.RateLimitConfig) func(h
 			w.Header().Set("X-RateLimit-Remaining", strconv.Itoa(remaining))
 
 			if !allowed {
-				metrics.RateLimitedTotal.WithLabelValues(apiKey).Inc()
+				metrics.RateLimitedTotal.WithLabelValues().Inc()
 
 				w.Header().Set("Retry-After", strconv.Itoa(int(retryAfter.Seconds())+1))
 				w.Header().Set("X-RateLimit-Reset", strconv.FormatInt(

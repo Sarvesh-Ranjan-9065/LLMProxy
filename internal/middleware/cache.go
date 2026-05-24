@@ -70,13 +70,17 @@ func Cache(
 				return
 			}
 
-			// Read body
-			body, err := io.ReadAll(r.Body)
-			if err != nil {
-				next.ServeHTTP(w, r)
-				return
+			// Read body (or reuse from context if already captured)
+			body := getRequestBody(r.Context())
+			if body == nil {
+				var err error
+				body, err = io.ReadAll(r.Body)
+				if err != nil {
+					next.ServeHTTP(w, r)
+					return
+				}
+				r.Body = io.NopCloser(bytes.NewBuffer(body))
 			}
-			r.Body = io.NopCloser(bytes.NewBuffer(body))
 
 			// Check if streaming is requested — don't cache streams
 			var req internalCache.ChatRequest
