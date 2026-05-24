@@ -27,8 +27,12 @@ func InfoHandler() http.HandlerFunc {
 			"endpoints": []string{
 				"POST /v1/chat/completions",
 				"GET  /health",
-				"GET  /metrics",
-				"GET  /info",
+				"GET  /metrics (admin)",
+				"GET  /info (admin)",
+				"GET  /dashboard",
+				"GET  /dashboard/api/me",
+				"GET  /dashboard/api/user/summary",
+				"GET  /dashboard/api/admin/summary (admin)",
 			},
 		})
 	}

@@ -12,6 +12,7 @@ import (
 
 	"github.com/Sarvesh-Ranjan-9065/llmproxy/internal/cache"
 	"github.com/Sarvesh-Ranjan-9065/llmproxy/internal/config"
+	"github.com/Sarvesh-Ranjan-9065/llmproxy/internal/dashboard"
 	"github.com/Sarvesh-Ranjan-9065/llmproxy/internal/middleware"
 	"github.com/Sarvesh-Ranjan-9065/llmproxy/internal/ratelimit"
 	"github.com/Sarvesh-Ranjan-9065/llmproxy/internal/router"
@@ -56,10 +57,13 @@ func NewServer(cfg *config.Config) (*Server, error) {
 	// Initialize reverse proxy
 	reverseProxy := NewReverseProxy(lb, cfg)
 
+	// Dashboard store (in-memory stats)
+	dashboardStore := dashboard.NewStore(25)
+
 	// ──────────────────────────────────────────────────────────────
 	// Middleware chain — execution order (outermost → innermost):
 	//
-	//   Recovery  →  Auth  →  Metrics  →  Logging  →  RateLimit  →  Cache  →  ReverseProxy
+	//   Recovery  →  Auth  →  DashboardStats  →  Metrics  →  Logging  →  RateLimit  →  Cache  →  ReverseProxy
 	//
 	// • Recovery is outermost so panics anywhere are caught.
 	// • Auth runs early so every subsequent middleware has api_key in context.
@@ -68,12 +72,13 @@ func NewServer(cfg *config.Config) (*Server, error) {
 	// ──────────────────────────────────────────────────────────────
 	handler := buildChain(
 		reverseProxy,
-		middleware.Recovery(),     // 1 — outermost
-		middleware.Auth(cfg.Auth), // 2
-		middleware.Metrics(),      // 3
-		middleware.Logging(),      // 4
-		middleware.RateLimit(tokenBucket, cfg.RateLimit),         // 5
-		middleware.Cache(redisClient, hasher, ttlMgr, cfg.Cache), // 6 — innermost middleware
+		middleware.Recovery(),                                    // 1 — outermost
+		middleware.Auth(cfg.Auth),                                // 2
+		middleware.DashboardStats(dashboardStore),                // 3
+		middleware.Metrics(),                                     // 4
+		middleware.Logging(),                                     // 5
+		middleware.RateLimit(tokenBucket, cfg.RateLimit),         // 6
+		middleware.Cache(redisClient, hasher, ttlMgr, cfg.Cache), // 7 — innermost middleware
 	)
 
 	// Set up routes
@@ -81,8 +86,37 @@ func NewServer(cfg *config.Config) (*Server, error) {
 	mux.Handle("/v1/chat/completions", handler)
 	mux.Handle("/v1/completions", handler)
 	mux.HandleFunc("/health", HealthHandler())
-	mux.HandleFunc("/info", InfoHandler())
-	mux.Handle("/metrics", promhttp.Handler())
+
+	adminOnly := func(h http.Handler) http.Handler {
+		return buildChain(
+			h,
+			middleware.Recovery(),
+			middleware.Auth(cfg.Auth),
+			middleware.RequireRole("admin"),
+		)
+	}
+
+	userOrAdmin := func(h http.Handler) http.Handler {
+		return buildChain(
+			h,
+			middleware.Recovery(),
+			middleware.Auth(cfg.Auth),
+			middleware.RequireRole("user", "admin"),
+		)
+	}
+
+	mux.Handle("/metrics", adminOnly(promhttp.Handler()))
+	mux.Handle("/info", adminOnly(InfoHandler()))
+
+	dashboardHandler := dashboard.NewHandler(dashboardStore, pool, redisClient)
+	mux.Handle("/dashboard/api/me", userOrAdmin(http.HandlerFunc(dashboardHandler.Me)))
+	mux.Handle("/dashboard/api/user/summary", userOrAdmin(http.HandlerFunc(dashboardHandler.UserSummary)))
+	mux.Handle("/dashboard/api/admin/summary", adminOnly(http.HandlerFunc(dashboardHandler.AdminSummary)))
+
+	mux.HandleFunc("/dashboard", func(w http.ResponseWriter, r *http.Request) {
+		http.Redirect(w, r, "/dashboard/", http.StatusMovedPermanently)
+	})
+	mux.Handle("/dashboard/", http.StripPrefix("/dashboard/", http.FileServer(http.Dir("dashboard"))))
 
 	httpServer := &http.Server{
 		Addr:         ":" + cfg.Server.Port,
