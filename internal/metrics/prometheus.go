@@ -65,6 +65,13 @@ var (
 		[]string{},
 	)
 
+	RateLimitRedisUp = promauto.NewGauge(
+		prometheus.GaugeOpts{
+			Name: "llmproxy_ratelimit_redis_up",
+			Help: "Whether Redis is reachable for rate limiting (1=up, 0=down)",
+		},
+	)
+
 	// ─── Token usage metrics ───────────────────────────────────
 	TokensUsed = promauto.NewCounterVec(
 		prometheus.CounterOpts{
@@ -122,6 +129,8 @@ var (
 )
 
 func init() {
+	RateLimitRedisUp.Set(1)
+
 	if os.Getenv("ENABLE_PER_KEY_METRICS") == "1" || os.Getenv("ENABLE_PER_KEY_METRICS") == "true" {
 		// create a simple gauge so operators can tell per-key metrics are enabled
 		PerKeyEnabledGauge = promauto.NewGauge(prometheus.GaugeOpts{

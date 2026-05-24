@@ -14,6 +14,8 @@ import (
 
 // RateLimit middleware applies per-API-key token bucket rate limiting
 func RateLimit(bucket *ratelimit.TokenBucket, cfg config.RateLimitConfig) func(http.Handler) http.Handler {
+	fallback := ratelimit.NewInMemoryLimiter()
+
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			apiKey := GetAPIKey(r.Context())
@@ -29,13 +31,16 @@ func RateLimit(bucket *ratelimit.TokenBucket, cfg config.RateLimitConfig) func(h
 
 			allowed, remaining, retryAfter, err := bucket.Allow(r.Context(), apiKey, rate, burst)
 			if err != nil {
-				// Fail open — allow the request but log the error
-				slog.Error("rate limit check failed — failing open",
+				metrics.RateLimitRedisUp.Set(0)
+				slog.Warn("rate limit redis error, using local limiter",
 					"error", err,
 					"api_key", apiKey,
 					"rate", rate,
 					"burst", burst,
 				)
+				allowed, remaining, retryAfter = fallback.Allow(apiKey, rate, burst)
+			} else {
+				metrics.RateLimitRedisUp.Set(1)
 			}
 
 			// Set rate limit headers

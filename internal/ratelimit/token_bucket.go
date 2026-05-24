@@ -69,13 +69,12 @@ func (tb *TokenBucket) Allow(ctx context.Context, key string, rate float64, burs
 	bucketKey := fmt.Sprintf("ratelimit:bucket:%s", key)
 	result, err := tb.store.Eval(ctx, luaScript, []string{bucketKey}, rate, burst, now)
 	if err != nil {
-		// If Redis is down, allow the request (fail open)
-		return true, burst, 0, fmt.Errorf("rate limit check failed: %w", err)
+		return false, 0, 0, fmt.Errorf("rate limit check failed: %w", err)
 	}
 
 	values, ok := result.([]interface{})
 	if !ok || len(values) != 3 {
-		return true, burst, 0, fmt.Errorf("unexpected rate limit response")
+		return false, 0, 0, fmt.Errorf("unexpected rate limit response")
 	}
 
 	allowed := values[0].(int64) == 1
