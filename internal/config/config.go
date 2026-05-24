@@ -57,7 +57,51 @@ type CacheConfig struct {
 
 type AuthConfig struct {
 	Enabled bool              `json:"enabled"`
-	APIKeys map[string]string `json:"api_keys"`
+	APIKeys APIKeyMap         `json:"api_keys"`
+}
+
+type APIKeyInfo struct {
+	Owner string `json:"owner"`
+	Role  string `json:"role"`
+	Tier  string `json:"tier,omitempty"`
+}
+
+type APIKeyMap map[string]APIKeyInfo
+
+func (m *APIKeyMap) UnmarshalJSON(data []byte) error {
+	if len(data) == 0 || string(data) == "null" {
+		*m = APIKeyMap{}
+		return nil
+	}
+
+	var raw map[string]json.RawMessage
+	if err := json.Unmarshal(data, &raw); err != nil {
+		return err
+	}
+
+	out := make(APIKeyMap, len(raw))
+	for key, val := range raw {
+		var owner string
+		if err := json.Unmarshal(val, &owner); err == nil {
+			out[key] = APIKeyInfo{Owner: owner, Role: "user"}
+			continue
+		}
+
+		var info APIKeyInfo
+		if err := json.Unmarshal(val, &info); err != nil {
+			return err
+		}
+		if info.Owner == "" {
+			info.Owner = "unknown"
+		}
+		if info.Role == "" {
+			info.Role = "user"
+		}
+		out[key] = info
+	}
+
+	*m = out
+	return nil
 }
 
 func Load() *Config {
@@ -89,7 +133,7 @@ func Load() *Config {
 		},
 		Auth: AuthConfig{
 			Enabled: true,
-			APIKeys: map[string]string{},
+			APIKeys: APIKeyMap{},
 		},
 	}
 
@@ -110,21 +154,21 @@ func Load() *Config {
 			slog.Info("loaded config from file", "file", configFile)
 		}
 
-		// Allow API keys to be provided via environment as JSON map
-		if apiKeysJSON := getEnv("API_KEYS_JSON", ""); apiKeysJSON != "" {
-			var m map[string]string
-			if err := json.Unmarshal([]byte(apiKeysJSON), &m); err == nil {
-				cfg.Auth.APIKeys = m
-			} else {
-				slog.Error("invalid API_KEYS_JSON, ignoring", "error", err)
-			}
-		}
-
 		// Backend auth settings from env
 		cfg.Server.BackendAuthHeader = getEnv("PROXY_BACKEND_AUTH_HEADER", cfg.Server.BackendAuthHeader)
 		cfg.Server.BackendAuthValue = getEnv("PROXY_BACKEND_AUTH_VALUE", cfg.Server.BackendAuthValue)
 		if v := getEnv("PROXY_BACKEND_AUTH_PASSTHROUGH", ""); v != "" {
 			cfg.Server.BackendAuthPassthrough = (v == "1" || strings.ToLower(v) == "true")
+		}
+	}
+
+	// Allow API keys to be provided via environment as JSON map
+	if apiKeysJSON := getEnv("API_KEYS_JSON", ""); apiKeysJSON != "" {
+		var m APIKeyMap
+		if err := json.Unmarshal([]byte(apiKeysJSON), &m); err == nil {
+			cfg.Auth.APIKeys = m
+		} else {
+			slog.Error("invalid API_KEYS_JSON, ignoring", "error", err)
 		}
 	}
 	return cfg

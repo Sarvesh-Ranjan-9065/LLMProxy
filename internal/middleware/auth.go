@@ -4,22 +4,24 @@ import (
 	"context"
 	"encoding/json"
 	"net/http"
+	"strings"
 
+	"github.com/Sarvesh-Ranjan-9065/llmproxy/internal/authctx"
 	"github.com/Sarvesh-Ranjan-9065/llmproxy/internal/config"
 	"github.com/Sarvesh-Ranjan-9065/llmproxy/internal/metrics"
 )
 
-type contextKey string
+type requestBodyKey string
 
-const APIKeyContextKey contextKey = "api_key"
-const OwnerContextKey contextKey = "api_key_owner"
+const RequestBodyContextKey requestBodyKey = "request_body"
 
 // Auth validates API keys from the X-API-Key header
 func Auth(cfg config.AuthConfig) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			if !cfg.Enabled {
-				next.ServeHTTP(w, r)
+				ctx := authctx.WithAuth(r.Context(), "anonymous", "anonymous", "admin", "dev")
+				next.ServeHTTP(w, r.WithContext(ctx))
 				return
 			}
 
@@ -39,16 +41,24 @@ func Auth(cfg config.AuthConfig) func(http.Handler) http.Handler {
 				return
 			}
 
-			owner, exists := cfg.APIKeys[apiKey]
+			info, exists := cfg.APIKeys[apiKey]
 			if !exists {
 				metrics.AuthRejectedTotal.WithLabelValues("invalid_key").Inc()
 				writeError(w, http.StatusUnauthorized, "invalid API key")
 				return
 			}
 
+			owner := info.Owner
+			if owner == "" {
+				owner = "unknown"
+			}
+			role := strings.ToLower(strings.TrimSpace(info.Role))
+			if role == "" {
+				role = "user"
+			}
+
 			// Store API key and owner in context
-			ctx := context.WithValue(r.Context(), APIKeyContextKey, apiKey)
-			ctx = context.WithValue(ctx, OwnerContextKey, owner)
+			ctx := authctx.WithAuth(r.Context(), apiKey, owner, role, info.Tier)
 
 			next.ServeHTTP(w, r.WithContext(ctx))
 		})
@@ -56,10 +66,26 @@ func Auth(cfg config.AuthConfig) func(http.Handler) http.Handler {
 }
 
 func GetAPIKey(ctx context.Context) string {
-	if key, ok := ctx.Value(APIKeyContextKey).(string); ok {
-		return key
+	return authctx.GetAPIKey(ctx)
+}
+
+func GetOwner(ctx context.Context) string {
+	return authctx.GetOwner(ctx)
+}
+
+func GetRole(ctx context.Context) string {
+	return authctx.GetRole(ctx)
+}
+
+func GetTier(ctx context.Context) string {
+	return authctx.GetTier(ctx)
+}
+
+func getRequestBody(ctx context.Context) []byte {
+	if body, ok := ctx.Value(RequestBodyContextKey).([]byte); ok {
+		return body
 	}
-	return "unknown"
+	return nil
 }
 
 func writeError(w http.ResponseWriter, status int, msg string) {
