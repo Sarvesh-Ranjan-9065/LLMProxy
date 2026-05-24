@@ -66,8 +66,19 @@ jobs:
 
       - name: Start proxy
         run: |
+          cat > /tmp/llmproxy-ci.json <<'EOF'
+          {
+            "auth": {
+              "enabled": true,
+              "api_keys": {
+                "test-key": "ci-user"
+              }
+            }
+          }
+          EOF
+
           REDIS_ADDR=localhost:6379 \
-          API_KEYS_JSON='{"test-key":"ci-user"}' \
+          CONFIG_FILE=/tmp/llmproxy-ci.json \
           ./bin/proxy &
           # Wait for proxy /health to respond
           for i in {1..20}; do
