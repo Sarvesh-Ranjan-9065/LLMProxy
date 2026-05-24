@@ -14,15 +14,39 @@ type RedisClient struct {
 }
 
 func NewRedisClient(cfg config.RedisConfig) (*RedisClient, error) {
+	dialTimeout := cfg.DialTimeout
+	if dialTimeout == 0 {
+		dialTimeout = 5 * time.Second
+	}
+	readTimeout := cfg.ReadTimeout
+	if readTimeout == 0 {
+		readTimeout = 3 * time.Second
+	}
+	writeTimeout := cfg.WriteTimeout
+	if writeTimeout == 0 {
+		writeTimeout = 3 * time.Second
+	}
+	poolSize := cfg.PoolSize
+	if poolSize <= 0 {
+		poolSize = 50
+	}
+	minIdleConns := cfg.MinIdleConns
+	if minIdleConns < 0 {
+		minIdleConns = 0
+	}
+	if minIdleConns == 0 {
+		minIdleConns = 10
+	}
+
 	client := redis.NewClient(&redis.Options{
 		Addr:         cfg.Addr,
 		Password:     cfg.Password,
 		DB:           cfg.DB,
-		DialTimeout:  5 * time.Second,
-		ReadTimeout:  3 * time.Second,
-		WriteTimeout: 3 * time.Second,
-		PoolSize:     50,
-		MinIdleConns: 10,
+		DialTimeout:  dialTimeout,
+		ReadTimeout:  readTimeout,
+		WriteTimeout: writeTimeout,
+		PoolSize:     poolSize,
+		MinIdleConns: minIdleConns,
 	})
 
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
