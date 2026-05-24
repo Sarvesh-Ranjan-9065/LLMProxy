@@ -1,10 +1,14 @@
 package worker
 
 import (
+	"context"
 	"encoding/json"
 	"io"
 	"log/slog"
 	"net/http"
+	"os"
+	"os/signal"
+	"syscall"
 	"time"
 )
 
@@ -43,6 +47,18 @@ func (ws *WorkerServer) Start() error {
 		ReadTimeout:  30 * time.Second,
 		WriteTimeout: 60 * time.Second,
 	}
+
+	shutdown := make(chan os.Signal, 1)
+	signal.Notify(shutdown, syscall.SIGINT, syscall.SIGTERM)
+	go func() {
+		<-shutdown
+		slog.Info("worker shutting down", "worker_id", ws.workerID)
+		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		defer cancel()
+		if err := server.Shutdown(ctx); err != nil {
+			slog.Error("worker shutdown error", "error", err)
+		}
+	}()
 
 	slog.Info("Mock LLM worker starting",
 		"worker_id", ws.workerID,

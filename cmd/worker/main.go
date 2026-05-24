@@ -3,6 +3,7 @@ package main
 import (
 	"log"
 	"log/slog"
+	"net/http"
 	"os"
 
 	"github.com/Sarvesh-Ranjan-9065/llmproxy/internal/worker"
@@ -25,7 +26,7 @@ func main() {
 	}
 
 	ws := worker.NewWorkerServer(port, workerID)
-	if err := ws.Start(); err != nil {
+	if err := ws.Start(); err != nil && err != http.ErrServerClosed {
 		log.Fatalf("Worker failed: %v", err)
 	}
 }
