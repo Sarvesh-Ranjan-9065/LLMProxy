@@ -23,6 +23,14 @@ type responseRecorder struct {
 	body       *bytes.Buffer
 }
 
+type cacheReader interface {
+	Get(ctx context.Context, key string) (string, error)
+}
+
+type cacheWriter interface {
+	SetWithTTL(ctx context.Context, key string, value string, ttl time.Duration) error
+}
+
 func newResponseRecorder(w http.ResponseWriter) *responseRecorder {
 	return &responseRecorder{
 		ResponseWriter: w,
@@ -44,11 +52,13 @@ func (rr *responseRecorder) Write(b []byte) (int, error) {
 // Cache middleware checks Redis for cached responses and stores new ones.
 // Cache keys are namespaced by API key so tenants never share cached data.
 func Cache(
-	redisClient *internalCache.RedisClient,
+	redisClient cacheReader,
 	hasher *internalCache.SemanticHasher,
-	ttlMgr *internalCache.TTLManager,
+	ttlMgr cacheWriter,
 	cfg config.CacheConfig,
 ) func(http.Handler) http.Handler {
+	cacheSem := make(chan struct{}, 50)
+
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			if !cfg.Enabled {
@@ -127,16 +137,24 @@ func Cache(
 				// Use a detached background context so the write succeeds
 				// even after the request context is cancelled.
 				responseBody := recorder.body.String()
-				go func() {
-					ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-					defer cancel()
-					if err := ttlMgr.SetWithTTL(ctx, cacheKey, responseBody, cfg.TTL); err != nil {
-						slog.Error("failed to cache response",
-							"error", err,
-							"key", cacheKey[:30],
-						)
-					}
-				}()
+				select {
+				case cacheSem <- struct{}{}:
+					go func() {
+						defer func() { <-cacheSem }()
+						ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+						defer cancel()
+						if err := ttlMgr.SetWithTTL(ctx, cacheKey, responseBody, cfg.TTL); err != nil {
+							slog.Error("failed to cache response",
+								"error", err,
+								"key", cacheKey[:30],
+							)
+						}
+					}()
+				default:
+					slog.Warn("cache write skipped due to saturation",
+						"key", cacheKey[:30],
+					)
+				}
 			}
 		})
 	}
