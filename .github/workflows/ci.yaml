@@ -32,6 +32,9 @@ jobs:
       - name: Download dependencies
         run: go mod download
 
+      - name: Run go vet (Linter)
+        run: go vet ./...
+
       - name: Build proxy
         run: mkdir -p bin && go build -o bin/proxy ./cmd/proxy/
 
