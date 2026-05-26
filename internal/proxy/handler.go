@@ -5,6 +5,9 @@ import (
 	"net/http"
 )
 
+// Version is injected at build time via -ldflags.
+var Version = "dev"
+
 // HealthHandler returns the proxy's health status
 func HealthHandler() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
@@ -23,7 +26,7 @@ func InfoHandler() http.HandlerFunc {
 		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(map[string]interface{}{
 			"service": "LLMProxy",
-			"version": "1.0.0",
+			"version": Version,
 			"endpoints": []string{
 				"POST /v1/chat/completions",
 				"GET  /health",
