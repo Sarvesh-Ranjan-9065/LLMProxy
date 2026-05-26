@@ -1,8 +1,12 @@
 .PHONY: build run test clean docker-up docker-down load-test
 
+VERSION ?= dev
+LDFLAGS := -X github.com/Sarvesh-Ranjan-9065/llmproxy/internal/proxy.Version=$(VERSION)
+
 # ─── Build ──────────────────────────────────────────
 build:
-	go build -o bin/proxy ./cmd/proxy/
+	mkdir -p bin
+	go build -ldflags "$(LDFLAGS)" -o bin/proxy ./cmd/proxy/
 	go build -o bin/worker ./cmd/worker/
 
 # ─── Run locally ────────────────────────────────────
