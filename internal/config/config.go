@@ -9,13 +9,14 @@ import (
 )
 
 type Config struct {
-	Server    ServerConfig    `json:"server"`
-	Redis     RedisConfig     `json:"redis"`
-	Workers   []WorkerConfig  `json:"workers"`
-	Router    RouterConfig    `json:"router"`
-	RateLimit RateLimitConfig `json:"rate_limit"`
-	Cache     CacheConfig     `json:"cache"`
-	Auth      AuthConfig      `json:"auth"`
+	Server        ServerConfig        `json:"server"`
+	Redis         RedisConfig         `json:"redis"`
+	Workers       []WorkerConfig      `json:"workers"`
+	Router        RouterConfig        `json:"router"`
+	Observability ObservabilityConfig `json:"observability"`
+	RateLimit     RateLimitConfig     `json:"rate_limit"`
+	Cache         CacheConfig         `json:"cache"`
+	Auth          AuthConfig          `json:"auth"`
 }
 
 type ServerConfig struct {
@@ -49,6 +50,11 @@ type RouterConfig struct {
 	StartBackendsAlive bool `json:"start_backends_alive"`
 }
 
+type ObservabilityConfig struct {
+	PrometheusURL string `json:"prometheus_url"`
+	GrafanaURL    string `json:"grafana_url"`
+}
+
 type RateLimitConfig struct {
 	DefaultRate  float64             `json:"default_rate"`
 	DefaultBurst int                 `json:"default_burst"`
@@ -66,8 +72,10 @@ type CacheConfig struct {
 }
 
 type AuthConfig struct {
-	Enabled bool      `json:"enabled"`
-	APIKeys APIKeyMap `json:"api_keys"`
+	Enabled     bool      `json:"enabled"`
+	APIKeys     APIKeyMap `json:"api_keys"`
+	Store       string    `json:"store"`
+	RedisPrefix string    `json:"redis_prefix"`
 }
 
 type APIKeyInfo struct {
@@ -140,6 +148,10 @@ func Load() *Config {
 		Router: RouterConfig{
 			StartBackendsAlive: true,
 		},
+		Observability: ObservabilityConfig{
+			PrometheusURL: getEnv("PROMETHEUS_URL", ""),
+			GrafanaURL:    getEnv("GRAFANA_URL", ""),
+		},
 		RateLimit: RateLimitConfig{
 			DefaultRate:  10,
 			DefaultBurst: 20,
@@ -150,8 +162,10 @@ func Load() *Config {
 			TTL:     5 * time.Minute,
 		},
 		Auth: AuthConfig{
-			Enabled: true,
-			APIKeys: APIKeyMap{},
+			Enabled:     true,
+			APIKeys:     APIKeyMap{},
+			Store:       getEnv("AUTH_STORE", "config"),
+			RedisPrefix: getEnv("AUTH_REDIS_PREFIX", "auth:apikey:"),
 		},
 	}
 
@@ -178,6 +192,19 @@ func Load() *Config {
 		if v := getEnv("PROXY_BACKEND_AUTH_PASSTHROUGH", ""); v != "" {
 			cfg.Server.BackendAuthPassthrough = (v == "1" || strings.ToLower(v) == "true")
 		}
+	}
+
+	if v := getEnv("AUTH_STORE", ""); v != "" {
+		cfg.Auth.Store = v
+	}
+	if v := getEnv("AUTH_REDIS_PREFIX", ""); v != "" {
+		cfg.Auth.RedisPrefix = v
+	}
+	if v := getEnv("PROMETHEUS_URL", ""); v != "" {
+		cfg.Observability.PrometheusURL = v
+	}
+	if v := getEnv("GRAFANA_URL", ""); v != "" {
+		cfg.Observability.GrafanaURL = v
 	}
 
 	// Allow API keys to be provided via environment as JSON map

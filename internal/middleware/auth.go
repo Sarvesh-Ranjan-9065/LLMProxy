@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/Sarvesh-Ranjan-9065/llmproxy/internal/authctx"
+	"github.com/Sarvesh-Ranjan-9065/llmproxy/internal/authstore"
 	"github.com/Sarvesh-Ranjan-9065/llmproxy/internal/config"
 	"github.com/Sarvesh-Ranjan-9065/llmproxy/internal/metrics"
 )
@@ -16,13 +17,17 @@ type requestBodyKey string
 const RequestBodyContextKey requestBodyKey = "request_body"
 
 // Auth validates API keys from the X-API-Key header
-func Auth(cfg config.AuthConfig) func(http.Handler) http.Handler {
+func Auth(store authstore.Store, cfg config.AuthConfig) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			if !cfg.Enabled {
 				ctx := authctx.WithAuth(r.Context(), "anonymous", "anonymous", "admin", "dev")
 				next.ServeHTTP(w, r.WithContext(ctx))
 				return
+			}
+
+			if store == nil {
+				store = authstore.NewConfigStore(cfg.APIKeys)
 			}
 
 			// Check for API key in header
@@ -41,7 +46,12 @@ func Auth(cfg config.AuthConfig) func(http.Handler) http.Handler {
 				return
 			}
 
-			info, exists := cfg.APIKeys[apiKey]
+			info, exists, err := store.Lookup(r.Context(), apiKey)
+			if err != nil {
+				metrics.AuthRejectedTotal.WithLabelValues("store_error").Inc()
+				writeError(w, http.StatusServiceUnavailable, "auth store unavailable")
+				return
+			}
 			if !exists {
 				metrics.AuthRejectedTotal.WithLabelValues("invalid_key").Inc()
 				writeError(w, http.StatusUnauthorized, "invalid API key")
