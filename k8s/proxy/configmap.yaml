@@ -6,3 +6,7 @@ data:
   PROXY_PORT: "8080"
   REDIS_ADDR: "redis-service:6379"
   WORKER_1_URL: "http://llmproxy-worker-service:9001"
+  AUTH_STORE: "redis"
+  AUTH_REDIS_PREFIX: "auth:apikey:"
+  PROMETHEUS_URL: "http://prometheus:9090"
+  GRAFANA_URL: "http://grafana:3000"

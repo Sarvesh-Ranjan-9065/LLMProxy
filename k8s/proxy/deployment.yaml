@@ -31,6 +31,14 @@ spec:
               value: "http://llmproxy-worker-service:9001"
             - name: WORKER_3_URL
               value: "http://llmproxy-worker-service:9001"
+            - name: AUTH_STORE
+              value: "redis"
+            - name: AUTH_REDIS_PREFIX
+              value: "auth:apikey:"
+            - name: PROMETHEUS_URL
+              value: "http://prometheus:9090"
+            - name: GRAFANA_URL
+              value: "http://grafana:3000"
           readinessProbe:
             httpGet:
               path: /health

@@ -5,6 +5,7 @@ import (
 	"net/http/httptest"
 	"testing"
 
+	"github.com/Sarvesh-Ranjan-9065/llmproxy/internal/authstore"
 	"github.com/Sarvesh-Ranjan-9065/llmproxy/internal/config"
 )
 
@@ -16,7 +17,7 @@ func TestAuthMissingKey(t *testing.T) {
 		},
 	}
 
-	handler := Auth(cfg)(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	handler := Auth(authstore.NewConfigStore(cfg.APIKeys), cfg)(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		t.Error("should not reach handler")
 	}))
 
@@ -38,7 +39,7 @@ func TestAuthInvalidKey(t *testing.T) {
 		},
 	}
 
-	handler := Auth(cfg)(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	handler := Auth(authstore.NewConfigStore(cfg.APIKeys), cfg)(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		t.Error("should not reach handler")
 	}))
 
@@ -62,7 +63,7 @@ func TestAuthValidKey(t *testing.T) {
 	}
 
 	var gotKey string
-	handler := Auth(cfg)(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	handler := Auth(authstore.NewConfigStore(cfg.APIKeys), cfg)(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		gotKey = GetAPIKey(r.Context())
 		w.WriteHeader(200)
 	}))
@@ -90,7 +91,7 @@ func TestAuthBearerToken(t *testing.T) {
 	}
 
 	var gotKey string
-	handler := Auth(cfg)(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	handler := Auth(authstore.NewConfigStore(cfg.APIKeys), cfg)(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		gotKey = GetAPIKey(r.Context())
 		w.WriteHeader(200)
 	}))
@@ -110,7 +111,7 @@ func TestAuthDisabled(t *testing.T) {
 	cfg := config.AuthConfig{Enabled: false}
 
 	reached := false
-	handler := Auth(cfg)(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	handler := Auth(authstore.NewConfigStore(cfg.APIKeys), cfg)(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		reached = true
 		w.WriteHeader(200)
 	}))
