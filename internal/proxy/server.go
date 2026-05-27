@@ -10,6 +10,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/Sarvesh-Ranjan-9065/llmproxy/internal/authstore"
 	"github.com/Sarvesh-Ranjan-9065/llmproxy/internal/cache"
 	"github.com/Sarvesh-Ranjan-9065/llmproxy/internal/config"
 	"github.com/Sarvesh-Ranjan-9065/llmproxy/internal/dashboard"
@@ -33,6 +34,11 @@ func NewServer(cfg *config.Config) (*Server, error) {
 		return nil, fmt.Errorf("failed to connect to Redis: %w", err)
 	}
 	slog.Info("connected to Redis", "addr", cfg.Redis.Addr)
+
+	authStore, err := authstore.New(cfg.Auth, redisClient)
+	if err != nil {
+		return nil, fmt.Errorf("failed to initialize auth store: %w", err)
+	}
 
 	// Initialize backend pool
 	pool, err := router.NewPool(cfg.Workers, cfg.Router.StartBackendsAlive)
@@ -73,7 +79,7 @@ func NewServer(cfg *config.Config) (*Server, error) {
 	handler := buildChain(
 		reverseProxy,
 		middleware.Recovery(),                                    // 1 — outermost
-		middleware.Auth(cfg.Auth),                                // 2
+		middleware.Auth(authStore, cfg.Auth),                     // 2
 		middleware.DashboardStats(dashboardStore),                // 3
 		middleware.Metrics(),                                     // 4
 		middleware.Logging(),                                     // 5
@@ -91,7 +97,7 @@ func NewServer(cfg *config.Config) (*Server, error) {
 		return buildChain(
 			h,
 			middleware.Recovery(),
-			middleware.Auth(cfg.Auth),
+			middleware.Auth(authStore, cfg.Auth),
 			middleware.RequireRole("admin"),
 		)
 	}
@@ -100,13 +106,39 @@ func NewServer(cfg *config.Config) (*Server, error) {
 		return buildChain(
 			h,
 			middleware.Recovery(),
-			middleware.Auth(cfg.Auth),
+			middleware.Auth(authStore, cfg.Auth),
 			middleware.RequireRole("user", "admin"),
 		)
 	}
 
 	mux.Handle("/metrics", adminOnly(promhttp.Handler()))
 	mux.Handle("/info", adminOnly(InfoHandler()))
+
+	if cfg.Observability.PrometheusURL != "" {
+		promProxy, err := newAdminReverseProxy(cfg.Observability.PrometheusURL, "/admin/prometheus")
+		if err != nil {
+			return nil, fmt.Errorf("failed to configure prometheus proxy: %w", err)
+		}
+		if promProxy != nil {
+			mux.HandleFunc("/admin/prometheus", func(w http.ResponseWriter, r *http.Request) {
+				http.Redirect(w, r, "/admin/prometheus/", http.StatusMovedPermanently)
+			})
+			mux.Handle("/admin/prometheus/", adminOnly(promProxy))
+		}
+	}
+
+	if cfg.Observability.GrafanaURL != "" {
+		grafProxy, err := newAdminReverseProxy(cfg.Observability.GrafanaURL, "/admin/grafana")
+		if err != nil {
+			return nil, fmt.Errorf("failed to configure grafana proxy: %w", err)
+		}
+		if grafProxy != nil {
+			mux.HandleFunc("/admin/grafana", func(w http.ResponseWriter, r *http.Request) {
+				http.Redirect(w, r, "/admin/grafana/", http.StatusMovedPermanently)
+			})
+			mux.Handle("/admin/grafana/", adminOnly(grafProxy))
+		}
+	}
 
 	dashboardHandler := dashboard.NewHandler(dashboardStore, pool, redisClient)
 	mux.Handle("/dashboard/api/me", userOrAdmin(http.HandlerFunc(dashboardHandler.Me)))
