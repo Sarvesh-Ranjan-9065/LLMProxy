@@ -56,7 +56,10 @@ services:
       - WORKER_1_URL=http://worker-1:9001
       - WORKER_2_URL=http://worker-2:9001
       - WORKER_3_URL=http://worker-3:9001
-      - API_KEYS_JSON={"admin-key":{"owner":"admin","role":"admin"},"user-key":{"owner":"user","role":"user"}}
+      - AUTH_STORE=redis
+      - AUTH_REDIS_PREFIX=auth:apikey
+      - PROMETHEUS_URL=http://prometheus:9090
+      - GRAFANA_URL=http://grafana:3000
     ports:
       - "8080:8080"
     depends_on:
@@ -68,6 +71,16 @@ services:
         condition: service_started
       worker-3:
         condition: service_started
+
+  redis-init:
+    image: redis:7-alpine
+    depends_on:
+      redis:
+        condition: service_healthy
+    entrypoint: ["/bin/sh", "-c"]
+    command: >-
+      redis-cli -h redis SET auth:apikey:admin-key '{"owner":"admin","role":"admin"}' EX 3600 &&
+      redis-cli -h redis SET auth:apikey:user-key '{"owner":"user","role":"user"}' EX 3600
 
   # ─── Prometheus ───────────────────────────────────
   prometheus:
