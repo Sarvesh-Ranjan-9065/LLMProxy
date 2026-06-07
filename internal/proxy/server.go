@@ -111,7 +111,7 @@ func NewServer(cfg *config.Config) (*Server, error) {
 		)
 	}
 
-	mux.Handle("/metrics", adminOnly(promhttp.Handler()))
+	mux.Handle("/metrics", promhttp.Handler())
 	mux.Handle("/info", adminOnly(InfoHandler()))
 
 	if cfg.Observability.PrometheusURL != "" {
@@ -183,7 +183,9 @@ func (s *Server) Start() error {
 
 		s.healthChecker.Stop()
 		s.redisClient.Close()
-		s.httpServer.Shutdown(ctx)
+		if err := s.httpServer.Shutdown(ctx); err != nil {
+			slog.Error("server shutdown error", "error", err)
+		}
 	}()
 
 	slog.Info("LLMProxy gateway starting",

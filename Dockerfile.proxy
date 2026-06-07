@@ -1,5 +1,5 @@
 # Build stage
-FROM golang:1.22-alpine AS builder
+FROM golang:1.25-alpine AS builder
 RUN apk --no-cache add git
 WORKDIR /app
 
@@ -16,6 +16,7 @@ RUN apk --no-cache add ca-certificates
 WORKDIR /app
 
 COPY --from=builder /llmproxy-gateway .
+COPY dashboard/ dashboard/
 
 EXPOSE 8080
 CMD ["./llmproxy-gateway"]

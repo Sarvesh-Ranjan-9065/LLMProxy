@@ -16,7 +16,7 @@ LLMProxy sits in front of your LLM backends and handles the infrastructure conce
 
 ## Prerequisites
 
-- [Go 1.22+](https://go.dev/doc/install)
+- [Go 1.25+](https://go.dev/doc/install)
 - [Redis 7+](https://redis.io/download/) (if running locally without Docker)
 - [Docker & Docker Compose](https://docs.docker.com/get-docker/) (for full local environment)
 

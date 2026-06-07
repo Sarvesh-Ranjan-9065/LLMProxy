@@ -1,5 +1,13 @@
 version: "3.9"
 
+# Reusable configuration template for workers
+x-worker-template: &worker-base
+  build:
+    context: .
+    dockerfile: Dockerfile.worker
+  environment:
+    - WORKER_PORT=9001
+
 services:
   # ─── Redis ────────────────────────────────────────
   redis:
@@ -16,9 +24,7 @@ services:
 
   # ─── Mock LLM Workers ────────────────────────────
   worker-1:
-    build:
-      context: .
-      dockerfile: Dockerfile.worker
+    <<: *worker-base
     environment:
       - WORKER_PORT=9001
       - WORKER_ID=worker-1
@@ -26,9 +32,7 @@ services:
       - "9001:9001"
 
   worker-2:
-    build:
-      context: .
-      dockerfile: Dockerfile.worker
+    <<: *worker-base
     environment:
       - WORKER_PORT=9001
       - WORKER_ID=worker-2
@@ -36,9 +40,7 @@ services:
       - "9002:9001"
 
   worker-3:
-    build:
-      context: .
-      dockerfile: Dockerfile.worker
+    <<: *worker-base
     environment:
       - WORKER_PORT=9001
       - WORKER_ID=worker-3
@@ -56,8 +58,9 @@ services:
       - WORKER_1_URL=http://worker-1:9001
       - WORKER_2_URL=http://worker-2:9001
       - WORKER_3_URL=http://worker-3:9001
-      - AUTH_STORE=redis
-      - AUTH_REDIS_PREFIX=auth:apikey
+      - AUTH_STORE=config
+      - "AUTH_REDIS_PREFIX=auth:apikey:"
+      - API_KEYS_JSON={"admin-key":{"owner":"admin","role":"admin"},"user-key":{"owner":"user","role":"user"}}
       - PROMETHEUS_URL=http://prometheus:9090
       - GRAFANA_URL=http://grafana:3000
     ports:
@@ -79,8 +82,8 @@ services:
         condition: service_healthy
     entrypoint: ["/bin/sh", "-c"]
     command: >-
-      redis-cli -h redis SET auth:apikey:admin-key '{"owner":"admin","role":"admin"}' EX 3600 &&
-      redis-cli -h redis SET auth:apikey:user-key '{"owner":"user","role":"user"}' EX 3600
+      sh -c 'redis-cli -h redis SET auth:apikey:admin-key "{\"owner\":\"admin\",\"role\":\"admin\"}" &&
+      redis-cli -h redis SET auth:apikey:user-key "{\"owner\":\"user\",\"role\":\"user\"}"'
 
   # ─── Prometheus ───────────────────────────────────
   prometheus:
@@ -100,6 +103,7 @@ services:
       - GF_SECURITY_ADMIN_USER=admin
     volumes:
       - grafana-data:/var/lib/grafana
+      - ./k8s/monitoring/grafana-provisioning:/etc/grafana/provisioning
     ports:
       - "3000:3000"
     depends_on:
